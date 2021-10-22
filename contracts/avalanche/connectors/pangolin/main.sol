@@ -5,7 +5,7 @@ pragma solidity ^0.7.0;
  * @dev Decentralized Exchange.
  */
 
-import { TokenInterface } from "../../../common/interfaces.sol";
+import { TokenInterface } from "../../common/interfaces.sol";
 import { Helpers } from "./helpers.sol";
 import { Events } from "./events.sol";
 
@@ -125,7 +125,7 @@ abstract contract PangolinResolver is Helpers, Events {
         )[0];
 
         isAvax = address(_buyAddr) == wavaxAddr;
-        convertAvaxToWavax(isAvax, _buyAddr, _buyAmt);
+        convertWavaxToAvax(isAvax, _buyAddr, _buyAmt);
 
         setUint(setId, _sellAmt);
 
@@ -182,7 +182,7 @@ abstract contract PangolinResolver is Helpers, Events {
         )[1];
 
         isAvax = address(_buyAddr) == wavaxAddr;
-        convertAvaxToWavax(isAvax, _buyAddr, _buyAmt);
+        convertWavaxToAvax(isAvax, _buyAddr, _buyAmt);
 
         setUint(setId, _buyAmt);
 
@@ -192,5 +192,5 @@ abstract contract PangolinResolver is Helpers, Events {
 }
 
 contract ConnectV2PngAvalanche is PangolinResolver {
-    string public constant name = "Pangolin-v1.0";
+    string public constant name = "Pangolin-v1";
 }

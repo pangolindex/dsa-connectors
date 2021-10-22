@@ -1,8 +1,8 @@
 pragma solidity ^0.7.0;
 
-import { TokenInterface } from "../../../common/interfaces.sol";
-import { DSMath } from "../../../common/math.sol";
-import { Basic } from "../../../common/basic.sol";
+import { TokenInterface } from "../../common/interfaces.sol";
+import { DSMath } from "../../common/math.sol";
+import { Basic } from "../../common/basic.sol";
 import { IPangolinRouter, IPangolinFactory } from "./interface.sol";
 
 abstract contract Helpers is DSMath, Basic {
@@ -124,10 +124,10 @@ abstract contract Helpers is DSMath, Basic {
         }
 
         bool isAvax = address(_tokenA) == wavaxAddr;
-        convertAvaxToWavax(isAvax, _tokenA, _amtA);
+        convertWavaxToAvax(isAvax, _tokenA, _amtA);
 
         isAvax = address(_tokenB) == wavaxAddr;
-        convertAvaxToWavax(isAvax, _tokenB, _amtB);
+        convertWavaxToAvax(isAvax, _tokenB, _amtB);
     }
 
     function _getRemoveLiquidityData(
@@ -140,7 +140,7 @@ abstract contract Helpers is DSMath, Basic {
         require(exchangeAddr != address(0), "pair-not-found.");
 
         TokenInterface pngToken = TokenInterface(exchangeAddr);
-        _pngAmt = _amt == uint(-1) ? pngToken.balanceOf(address(this)) : _amt;
-        approve(pngToken, address(router), _pngAmt);
+        _uniAmt = _amt == uint(-1) ? pngToken.balanceOf(address(this)) : _amt;
+        approve(pngToken, address(router), _uniAmt);
     }
 }
