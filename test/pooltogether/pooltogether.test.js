@@ -15,7 +15,7 @@ const tokens = require("../../scripts/constant/tokens");
 
 const connectV2CompoundArtifacts = require("../../artifacts/contracts/mainnet/connectors/compound/main.sol/ConnectV2Compound.json")
 const connectV2PoolTogetherArtifacts = require("../../artifacts/contracts/mainnet/connectors/pooltogether/main.sol/ConnectV2PoolTogether.json")
-const connectV2UniswapArtifacts = require("../../artifacts/contracts/mainnet/connectors/uniswap/main.sol/ConnectV2UniswapV2.json")
+const connectV2UniswapArtifacts = require("../../artifacts/contracts/mainnet/connectors/uniswap/v2/main.sol/ConnectV2UniswapV2.json")
 
 const DAI_TOKEN_ADDR = tokens.dai.address // DAI Token
 
