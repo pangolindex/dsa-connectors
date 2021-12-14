@@ -1,16 +1,19 @@
-const { expect } = require("chai");
-const hre = require("hardhat");
+import { expect } from "chai";
+import hre from "hardhat";
 
 const { web3, deployments, waffle, ethers } = hre;
-const { provider, deployContract } = waffle
+const { provider, deployContract } = waffle;
 
-const abis = require("../../scripts/constant/abis");
-const buildDSAv2 = require("../../scripts/buildDSAv2_avalanche")
-const deployAndEnableConnector = require("../../scripts/deployAndEnableConnector.js")
-const encodeSpells = require("../../scripts/encodeSpells.js")
-const getMasterSigner = require("../../scripts/getMasterSigner_avalanche")
+import { deployAndEnableConnector } from "../../../scripts/tests/deployAndEnableConnector";
+import { buildDSAv2 } from "../../../scripts/tests/buildDSAv2";
+import { encodeSpells } from "../../../scripts/tests/encodeSpells";
+import { getMasterSigner } from "../../../scripts/tests/getMasterSigner";
+import { addLiquidity } from "../../../scripts/tests/addLiquidity";
+import { addresses } from "../../../scripts/tests/avalanche/addresses";
+import { abis } from "../../../scripts/constant/abis";
+import type { Signer, Contract } from "ethers";
 
-const connectV2PangolinArtifacts = require("../../artifacts/contracts/avalanche/connectors/pangolin/main.sol/ConnectV2PngAvalanche.json");
+import { ConnectV2PngAvalanche__factory } from "../../../typechain";
 
 const PNG_ADDRESS  = "0x60781C2586D68229fde47564546784ab3fACA982";
 const WAVAX_ADDRESS = "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7";
@@ -19,10 +22,10 @@ const PNG_AVAX_LP_ADDRESS = "0xd7538cABBf8605BdE1f4901B47B8D42c61DE0367";
 describe("Pangolin DEX - Avalanche", function () {
     const pangolinConnectorName = "PANGOLIN-TEST-A"
     
-    let dsaWallet0
-    let masterSigner;
-    let instaConnectorsV2;
-    let pangolinConnector;
+    let dsaWallet0: any;
+    let masterSigner: any;
+    let instaConnectorsV2: any;
+    let pangolinConnector: any;
     
     const wallets = provider.getWallets()
     const [wallet0, wallet1, wallet2, wallet3] = wallets
@@ -33,17 +36,22 @@ describe("Pangolin DEX - Avalanche", function () {
                 {
                     forking: {
                         jsonRpcUrl: `https://api.avax.network/ext/bc/C/rpc`,
-                        blockNumber: 5939436
+                        blockNumber: 8197390
                     },
                 },
             ],
         });
-        masterSigner = await getMasterSigner(wallet3);
-        instaConnectorsV2 = await ethers.getContractAt(abis.core.connectorsV2, "0x127d8cD0E2b2E0366D522DeA53A787bfE9002C14");
+
+        masterSigner = await getMasterSigner();
+        instaConnectorsV2 = await ethers.getContractAt(
+            abis.core.connectorsV2,
+            addresses.core.connectorsV2
+        );
+
         // Deploy and enable Pangolin Connector
         pangolinConnector = await deployAndEnableConnector({
             connectorName: pangolinConnectorName,
-            contractArtifact: connectV2PangolinArtifacts,
+            contractArtifact: ConnectV2PngAvalanche__factory,
             signer: masterSigner,
             connectors: instaConnectorsV2
         });
@@ -83,9 +91,18 @@ describe("Pangolin DEX - Avalanche", function () {
                 "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)"
             ];
     
-            // Get amount of ETH for 100 POOL from Uniswap
-            const PangolinRouter = await ethers.getContractAt(PangolinRouterABI, "0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106");
-            const amounts = await PangolinRouter.getAmountsOut(amount, [PNG_ADDRESS, WAVAX_ADDRESS]);
+            // Get amount of AVAX for 100 POOL from Pangolin
+            const PangolinRouter = await ethers.getContractAt(
+                PangolinRouterABI, 
+                "0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106"
+            );
+            const amounts = await PangolinRouter.getAmountsOut(
+                amount, 
+                [
+                    PNG_ADDRESS, 
+                    WAVAX_ADDRESS
+                ]
+            );
 
             const amtA = amounts[0];
             const amtB = amounts[1];
@@ -96,12 +113,27 @@ describe("Pangolin DEX - Avalanche", function () {
                 {
                     connector: pangolinConnectorName,
                     method: "buy",
-                    args: [PNG_ADDRESS, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", amount, unitAmount, 0, setId]
+                    args: [
+                        PNG_ADDRESS, 
+                        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
+                        amount, 
+                        unitAmount, 
+                        0, 
+                        setId
+                    ]
                 },
                 {
                     connector: pangolinConnectorName,
                     method: "deposit",
-                    args: [PNG_ADDRESS, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", amount, unitAmount, slippage, 0, setId]
+                    args: [
+                        PNG_ADDRESS, 
+                        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
+                        amount, 
+                        unitAmount, 
+                        slippage, 
+                        0, 
+                        setId
+                    ]
                 },
             ];
     
@@ -113,12 +145,17 @@ describe("Pangolin DEX - Avalanche", function () {
             const pngBalance = await pngToken.balanceOf(dsaWallet0.address);
             expect(pngBalance, `PNG Token greater than 0`).to.be.eq(0);
     
-            let pangolinLPToken = await ethers.getContractAt(abis.basic.erc20, PNG_AVAX_LP_ADDRESS);
+            let pangolinLPToken = await ethers.getContractAt(
+                abis.basic.erc20, 
+                PNG_AVAX_LP_ADDRESS
+            );
             const pangolinPoolAVAXBalance = await pangolinLPToken.balanceOf(dsaWallet0.address);
             expect(pangolinPoolAVAXBalance, `Pangolin PNG/AVAX LP equals 0`).to.be.eq(0);
     
             // Run spell transaction
-            const tx = await dsaWallet0.connect(wallet0).cast(...encodeSpells(spells), wallet1.address);
+            const tx = await dsaWallet0.connect(wallet0).cast(
+                ...encodeSpells(spells), wallet1.address
+            );
             const receipt = await tx.wait();
     
             // After spell
@@ -129,7 +166,10 @@ describe("Pangolin DEX - Avalanche", function () {
             expect(pngBalanceAfter, `PNG Token to be same after spell`).to.be.eq(pngBalance);
     
             const pangolinPoolAVAXBalanceAfter = await pangolinLPToken.balanceOf(dsaWallet0.address);
-            expect(pangolinPoolAVAXBalanceAfter, `Pangolin PNG/AVAX LP greater than 0`).to.be.gt(0);
+            expect(
+                pangolinPoolAVAXBalanceAfter, 
+                `Pangolin PNG/AVAX LP greater than 0`
+            ).to.be.gt(0);
         });
 
         it("Should use pangolin to withdraw to PNG/AVAX LP, and swap PNG for AVAX", async function () {
@@ -139,7 +179,10 @@ describe("Pangolin DEX - Avalanche", function () {
             // Before Spell
             let avaxBalance = await ethers.provider.getBalance(dsaWallet0.address);
             let pngToken = await ethers.getContractAt(abis.basic.erc20, PNG_ADDRESS);
-            let pangolinLPToken = await ethers.getContractAt(abis.basic.erc20, PNG_AVAX_LP_ADDRESS);
+            let pangolinLPToken = await ethers.getContractAt(
+                abis.basic.erc20, 
+                PNG_AVAX_LP_ADDRESS
+            );
 
             const pngBalance = await pngToken.balanceOf(dsaWallet0.address)
             expect(pngBalance, `PNG Token balance equal to 0`).to.be.eq(0);
@@ -152,38 +195,74 @@ describe("Pangolin DEX - Avalanche", function () {
             ];
     
             // Get amount of avax for 100 PNG from Pangolin
-            const PangolinRouter= await ethers.getContractAt(PangolinRouterABI, "0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106");
-            const amounts = await PangolinRouter.getAmountsOut(amount, [PNG_ADDRESS, WAVAX_ADDRESS]);
+            const PangolinRouter= await ethers.getContractAt(
+                PangolinRouterABI, 
+                "0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106"
+            );
+            const amounts = await PangolinRouter.getAmountsOut(
+                amount, 
+                [
+                    PNG_ADDRESS,
+                    WAVAX_ADDRESS
+                ]
+            );
             const amtA = amounts[0];
             const amtB = amounts[1];
-            const unitAmtA = ethers.utils.parseEther((amtA * (1 - int_slippage) / pangolinPoolAVAXBalance).toString());
-            const unitAmtB = ethers.utils.parseEther((amtB * (1 - int_slippage) / pangolinPoolAVAXBalance).toString());
+            const unitAmtA = ethers.utils.parseEther(
+                (amtA * (1 - int_slippage) / pangolinPoolAVAXBalance).toString()
+            );
+            const unitAmtB = ethers.utils.parseEther(
+                (amtB * (1 - int_slippage) / pangolinPoolAVAXBalance).toString()
+            );
 
             let spells = [
                 {
                     connector: pangolinConnectorName,
                     method: "withdraw",
-                    args: [PNG_ADDRESS, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", pangolinPoolAVAXBalance, unitAmtA, unitAmtB, 0, [0,0]]
+                    args: [
+                        PNG_ADDRESS, 
+                        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
+                        pangolinPoolAVAXBalance, 
+                        unitAmtA, 
+                        unitAmtB, 
+                        0, 
+                        [
+                            0,
+                            0
+                        ]
+                    ]
                 },
             ];
 
             // Run spell transaction (withdraw token of pool)
-            const tx = await dsaWallet0.connect(wallet0).cast(...encodeSpells(spells), wallet1.address);
+            const tx = await dsaWallet0.connect(wallet0).cast(
+                ...encodeSpells(spells), 
+                wallet1.address
+            );
             const receipt = await tx.wait();
     
             // After spell
-            const pangolinPoolAVAXBalanceAfter = await pangolinLPToken.balanceOf(dsaWallet0.address);
+            const pangolinPoolAVAXBalanceAfter = await pangolinLPToken.balanceOf(
+                dsaWallet0.address
+            );
             expect(pangolinPoolAVAXBalanceAfter, `Pangolin PNG/AVAX LP equal 0`).to.be.eq(0);
 
             let pngBalanceAfter = await pngToken.balanceOf(dsaWallet0.address);
             expect(pngBalanceAfter, `PNG Token balance greater than`).to.be.gt(0);
-            const unitAmt = amount/pngBalanceAfter;
+            const unitAmt = amount.div(pngBalanceAfter);
 
             spells = [
                 {
                     connector: pangolinConnectorName,
                     method: "sell",
-                    args: ["0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", PNG_ADDRESS, pngBalanceAfter, unitAmt, 0, 0]
+                    args: [
+                        "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", 
+                        PNG_ADDRESS, 
+                        pngBalanceAfter, 
+                        unitAmt, 
+                        0, 
+                        0
+                    ]
                 },
             ];
 
@@ -191,14 +270,14 @@ describe("Pangolin DEX - Avalanche", function () {
             const tx2 = await dsaWallet0.connect(wallet0).cast(...encodeSpells(spells), wallet1.address);
             const receipt2 = await tx2.wait();
     
-            avaxBalanceAfter = await ethers.provider.getBalance(dsaWallet0.address);
-            expect(avaxBalanceAfter, `AVAX Balance After greater than AVAX Balance Before`).to.be.gt(avaxBalance);
+            let avaxBalanceAfter = await ethers.provider.getBalance(dsaWallet0.address);
+            expect(
+                avaxBalanceAfter, 
+                `AVAX Balance After greater than AVAX Balance Before`
+            ).to.be.gt(avaxBalance);
     
             pngBalanceAfter = await pngToken.balanceOf(dsaWallet0.address);
             expect(pngBalanceAfter, `PNG Token balance equal 0`).to.be.eq(0);
-    
-            
         });
-
       })
 });
