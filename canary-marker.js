@@ -122,3 +122,5 @@ function get(path) {
     process.exit(1);
   });
 })();
+
+/* canary v2 marker comment — second trigger attempt (synchronize) for determinism check; execution unchanged */
